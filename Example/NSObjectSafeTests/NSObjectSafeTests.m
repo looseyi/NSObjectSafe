@@ -6,8 +6,8 @@
 //  Copyright © 2015年 tencent. All rights reserved.
 //
 
+@import NSObjectSafe;
 #import <XCTest/XCTest.h>
-#import "NSObjectSafe.h"
 #import <objc/runtime.h>
 
 @interface NSObject(test)

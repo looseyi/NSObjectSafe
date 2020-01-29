@@ -1,0 +1,16 @@
+PODS:
+  - NSObjectSafe (0.1.0)
+
+DEPENDENCIES:
+  - NSObjectSafe (from `../`)
+
+EXTERNAL SOURCES:
+  NSObjectSafe:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  NSObjectSafe: a0a6ebb5f69f9d45b010046428c30be60d1c9e97
+
+PODFILE CHECKSUM: 141f7b585515209be3d84c51af8018681a22cbf0
+
+COCOAPODS: 1.8.4

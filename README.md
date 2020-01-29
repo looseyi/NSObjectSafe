@@ -1,4 +1,9 @@
 # NSObject-Safe
+fork from [NSObject-Safe](git@github.com:jasenhuang/NSObjectSafe.git)
+
+### Update 2020.01.30
+* add Pod support, mv Test to Example
+
 
 ### Update 2019.07.04
 * add overflow/negative support for NSRange

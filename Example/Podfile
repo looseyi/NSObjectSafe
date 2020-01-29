@@ -1,0 +1,9 @@
+platform :ios, '9.3'
+use_frameworks!
+
+target 'Example' do
+    pod "NSObjectSafe", :path => "../"
+
+    target 'ExampleTests' do
+    end
+end
