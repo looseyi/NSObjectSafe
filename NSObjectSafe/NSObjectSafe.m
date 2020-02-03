@@ -7,12 +7,54 @@
 //
 
 #import "NSObjectSafe.h"
+#import <mach-o/dyld.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 
 #if __has_feature(objc_arc)
 #error This file must be compiled with MRC. Use -fno-objc-arc flag.
 #endif
+
+
+/**
+ Get application base address,the application different base address after started
+ 获取Base address 来使用ATOS来查询Symbol:
+ ```
+ atos -arch arm64 -o xxxxx.dSYM/Contents/Resources/DWARF/xxxxx 真正地址
+ ```
+
+ @return base address
+ */
+uintptr_t get_load_address(void) {
+    const struct mach_header *exe_header = NULL;
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const struct mach_header *header = _dyld_get_image_header(i);
+        if (header->filetype == MH_EXECUTE) {
+            exe_header = header;
+            break;
+        }
+    }
+    return (uintptr_t)exe_header;
+}
+
+/**
+ Address Offset, 在记录出错信息上，调用栈信息会辅助帮我们快速定位问题，但是`[NSThread callStackSymbols]`的地址都是偏移过的，app在每次启动的时候都会ASLR（Address space layout randomization)
+ 真正的查询地址:__真正地址 =  0x00000001007d20a4 - get_slide_address__
+
+ @return slide address
+ */
+uintptr_t get_slide_address(void) {
+    uintptr_t vmaddr_slide = 0;
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const struct mach_header *header = _dyld_get_image_header(i);
+        if (header->filetype == MH_EXECUTE) {
+            vmaddr_slide = _dyld_get_image_vmaddr_slide(i);
+            break;
+        }
+    }
+
+    return (uintptr_t)vmaddr_slide;
+}
 
 /**
  * 1: negative value
@@ -42,13 +84,35 @@ NSAssert(condition, @"%@", __VA_ARGS__);
 void SFLog(const char* file, const char* func, int line, NSString* fmt, ...)
 {
     va_list args; va_start(args, fmt);
-    NSLog(@"%s|%s|%d|%@", file, func, line, [[[NSString alloc] initWithFormat:fmt arguments:args] autorelease]);
+    NSString *exceptionMessage = [[[NSString alloc] initWithFormat:fmt arguments:args] autorelease];
+    NSLog(@"%s|%s|%d|%@", file, func, line, exceptionMessage);
+
+    if ([SNBSafeProxy.sharedProxy.delegate respondsToSelector:@selector(handleCrashException:)]) {
+        NSArray* callStack = [NSThread callStackSymbols];
+        NSString* callStackString = [NSString stringWithFormat:@"%@",callStack];
+
+        uintptr_t loadAddress =  get_load_address();
+        uintptr_t slideAddress =  get_slide_address();
+
+        NSString* exceptionResult = [[NSString stringWithFormat:@"%ld\n%ld\n%@\n%@", loadAddress, slideAddress, exceptionMessage, callStackString] autorelease];
+
+        [SNBSafeProxy.sharedProxy.delegate handleCrashException: exceptionResult];
+    }
     va_end(args);
 }
-@interface NSSafeProxy : NSObject
-@end
 
-@implementation NSSafeProxy
+@implementation SNBSafeProxy
+
++ (instancetype)sharedProxy
+{
+    static SNBSafeProxy *proxy;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        proxy = [[SNBSafeProxy alloc] init];
+    });
+    return proxy;
+}
+
 - (void)dealException:(NSString*)info
 {
     NSString* msg = [NSString stringWithFormat:@"NSSafeProxy: %@", info];
@@ -193,7 +257,7 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
 {
     NSString* info = [NSString stringWithFormat:@"unrecognized selector [%@] sent to %@", NSStringFromSelector(invocation.selector), NSStringFromClass(self.class)];
     [[NSNotificationCenter defaultCenter] postNotificationName:NSSafeNotification object:self userInfo:@{@"invocation":invocation}];
-    [[[NSSafeProxy new] autorelease] dealException:info];
+    [[SNBSafeProxy sharedProxy] dealException:info];
 }
 
 @end

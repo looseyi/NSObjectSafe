@@ -25,6 +25,8 @@ FOUNDATION_EXPORT double NSObjectSafeVersionNumber;
 //! Project version string for NSObjectSafe.
 FOUNDATION_EXPORT const unsigned char NSObjectSafeVersionString[];
 
+NS_ASSUME_NONNULL_BEGIN
+
 // In this header, you should import all the public headers of your framework using statements like #import <NSObjectSafe/PublicHeader.h>
 
 FOUNDATION_EXPORT NSString *const NSSafeNotification;
@@ -34,3 +36,31 @@ FOUNDATION_EXPORT NSString *const NSSafeNotification;
 - (void)swizzleInstanceMethod:(SEL)origSelector withMethod:(SEL)newSelector;
 @end
 
+
+
+/**
+ Exception interface
+ */
+@protocol SNBExceptionHandleDelegate<NSObject>
+
+/**
+ Crash message and extra info from current thread
+
+ @param exceptionMessage crash message
+ @param info extraInfo,key and value
+ */
+- (void)handleCrashException:(NSString *)exceptionMessage;
+
+@end
+
+
+@interface SNBSafeProxy : NSObject
+
+@property(nonatomic, weak, nullable) id<SNBExceptionHandleDelegate> delegate;
+
++ (instancetype)sharedProxy;
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
+NS_ASSUME_NONNULL_END
