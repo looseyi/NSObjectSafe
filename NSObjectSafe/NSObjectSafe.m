@@ -199,12 +199,15 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
 {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        [NSObject swizzleClassMethod:@selector(methodSignatureForSelector:) withMethod:@selector(hookMethodSignatureForSelector:)];
+        [NSObject swizzleClassMethod:@selector(forwardInvocation:) withMethod:@selector(hookForwardInvocation:)];
         swizzleInstanceMethod([NSObject class], @selector(addObserver:forKeyPath:options:context:), @selector(hookAddObserver:forKeyPath:options:context:));
         swizzleInstanceMethod([NSObject class], @selector(removeObserver:forKeyPath:), @selector(hookRemoveObserver:forKeyPath:));
         swizzleInstanceMethod([NSObject class], @selector(methodSignatureForSelector:), @selector(hookMethodSignatureForSelector:));
         swizzleInstanceMethod([NSObject class], @selector(forwardInvocation:), @selector(hookForwardInvocation:));
     });
 }
+
 - (void) hookAddObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(void *)context
 {
     if (!observer || !keyPath.length) {
@@ -232,6 +235,44 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
     }
 }
 
+/**
+ * Check the class method signature to the [NSObject class]
+ * If not equals,return nil
+ * If equals,return the v@:@ method
+
+ @param currentClass Class
+ @return NSMethodSignature
+ */
++ (NSMethodSignature *)checkObjectSignatureAndCurrentClass:(Class)currentClass {
+    IMP originIMP = class_getMethodImplementation([NSObject class], @selector(methodSignatureForSelector:));
+    IMP currentClassIMP = class_getMethodImplementation(currentClass, @selector(methodSignatureForSelector:));
+
+    // If current class override methodSignatureForSelector return nil
+    if (originIMP != currentClassIMP){
+        return nil;
+    }
+
+    // Customer method signature
+    // void xxx(id,sel,id)
+    return [NSMethodSignature signatureWithObjCTypes:"v@:@"];
+}
+
++ (NSMethodSignature*)hookMethodSignatureForSelector:(SEL)aSelector {
+    NSMethodSignature* methodSignature = [self hookMethodSignatureForSelector:aSelector];
+    if (methodSignature) {
+        return methodSignature;
+    }
+
+    return [self.class checkObjectSignatureAndCurrentClass:self.class];
+}
+
++ (void)hookForwardInvocation:(NSInvocation*)invocation
+{
+    NSString* info = [NSString stringWithFormat:@"unrecognized static selector [%@] sent to %@", NSStringFromSelector(invocation.selector), NSStringFromClass(self.class)];
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSSafeNotification object:self userInfo:@{@"invocation":invocation}];
+    [[SNBSafeProxy sharedProxy] dealException:info];
+}
+
 - (NSMethodSignature*)hookMethodSignatureForSelector:(SEL)aSelector {
     /* 如果 当前类有methodSignatureForSelector实现，NSObject的实现直接返回nil
      * 子类实现如下：
@@ -243,14 +284,10 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
      *          return sig;
      */
     NSMethodSignature* sig = [self hookMethodSignatureForSelector:aSelector];
-    if (!sig){
-        if (class_getMethodImplementation([NSObject class], @selector(methodSignatureForSelector:))
-            != class_getMethodImplementation(self.class, @selector(methodSignatureForSelector:)) ){
-            return nil;
-        }
-        return [NSMethodSignature signatureWithObjCTypes:"v@:@"];
+    if (sig) {
+        return sig;
     }
-    return sig;
+    return [self.class checkObjectSignatureAndCurrentClass:self.class];
 }
 
 - (void)hookForwardInvocation:(NSInvocation*)invocation
