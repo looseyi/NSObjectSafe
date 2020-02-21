@@ -204,10 +204,10 @@
     NSLog(@"%@", [mstring substringToIndex:10]);
     NSLog(@"%@", [mstring substringWithRange:NSMakeRange(3, 10)]);
     
-    NSCache * cache = [[NSCache alloc] init];
+    // NSCache * cache = [[NSCache alloc] init];
     
-    [cache setObject:nil forKey:@""];
-    [cache setObject:nil forKey:@"" cost:0];
+    // [cache setObject:nil forKey:@""];
+    // [cache setObject:nil forKey:@"" cost:0];
 
     id nilArray[] = {@"a",@"b", nil ,@"c"};
     NSLog(@"%@", [NSMutableArray arrayWithObjects:nilArray count:4]);

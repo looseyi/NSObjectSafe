@@ -258,9 +258,9 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
 }
 
 + (NSMethodSignature*)hookMethodSignatureForSelector:(SEL)aSelector {
-    NSMethodSignature* methodSignature = [self hookMethodSignatureForSelector:aSelector];
-    if (methodSignature) {
-        return methodSignature;
+    NSMethodSignature* sig = [self hookMethodSignatureForSelector:aSelector];
+    if (sig) {
+        return sig;
     }
 
     return [self.class checkObjectSignatureAndCurrentClass:self.class];
@@ -1414,31 +1414,33 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
 
 @end
 
-#pragma mark - NSCache
+///======  comment NSCache for system api error usage Assert  ======
 
-@implementation NSCache(Safe)
-+ (void)load
-{
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        swizzleInstanceMethod([NSCache class], @selector(setObject:forKey:), @selector(hookSetObject:forKey:));
-        swizzleInstanceMethod([NSCache class], @selector(setObject:forKey:cost:), @selector(hookSetObject:forKey:cost:));
-    });
-}
-- (void)hookSetObject:(id)obj forKey:(id)key // 0 cost
-{
-    if (obj && key) {
-        [self hookSetObject:obj forKey:key];
-    }else {
-        SFAssert(NO, @"NSCache invalid args hookSetObject:[%@] forKey:[%@]", obj, key);
-    }
-}
-- (void)hookSetObject:(id)obj forKey:(id)key cost:(NSUInteger)g
-{
-    if (obj && key) {
-        [self hookSetObject:obj forKey:key cost:g];
-    }else {
-        SFAssert(NO, @"NSCache invalid args hookSetObject:[%@] forKey:[%@] cost:[%@]", obj, key, @(g));
-    }
-}
-@end
+// #pragma mark - NSCache
+
+// @implementation NSCache(Safe)
+// + (void)load
+// {
+//     static dispatch_once_t onceToken;
+//     dispatch_once(&onceToken, ^{
+//         swizzleInstanceMethod([NSCache class], @selector(setObject:forKey:), @selector(hookSetObject:forKey:));
+//         swizzleInstanceMethod([NSCache class], @selector(setObject:forKey:cost:), @selector(hookSetObject:forKey:cost:));
+//     });
+// }
+// - (void)hookSetObject:(id)obj forKey:(id)key // 0 cost
+// {
+//     if (obj && key) {
+//         [self hookSetObject:obj forKey:key];
+//     }else {
+//         SFAssert(NO, @"NSCache invalid args hookSetObject:[%@] forKey:[%@]", obj, key);
+//     }
+// }
+// - (void)hookSetObject:(id)obj forKey:(id)key cost:(NSUInteger)g
+// {
+//     if (obj && key) {
+//         [self hookSetObject:obj forKey:key cost:g];
+//     }else {
+//         SFAssert(NO, @"NSCache invalid args hookSetObject:[%@] forKey:[%@] cost:[%@]", obj, key, @(g));
+//     }
+// }
+// @end
