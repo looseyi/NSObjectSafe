@@ -94,7 +94,7 @@ void SFLog(const char* file, const char* func, int line, NSString* fmt, ...)
         uintptr_t loadAddress =  get_load_address();
         uintptr_t slideAddress =  get_slide_address();
 
-        NSString* exceptionResult = [[NSString stringWithFormat:@"%ld\n%ld\n%@\n%@", loadAddress, slideAddress, exceptionMessage, callStackString] autorelease];
+        NSString* exceptionResult = [NSString stringWithFormat:@"%ld\n%ld\n%@\n%@", loadAddress, slideAddress, exceptionMessage, callStackString];
 
         [SNBSafeProxy.sharedProxy.delegate handleCrashException: exceptionResult];
     }
@@ -201,10 +201,11 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
     dispatch_once(&onceToken, ^{
         [NSObject swizzleClassMethod:@selector(methodSignatureForSelector:) withMethod:@selector(hookMethodSignatureForSelector:)];
         [NSObject swizzleClassMethod:@selector(forwardInvocation:) withMethod:@selector(hookForwardInvocation:)];
-        swizzleInstanceMethod([NSObject class], @selector(addObserver:forKeyPath:options:context:), @selector(hookAddObserver:forKeyPath:options:context:));
-        swizzleInstanceMethod([NSObject class], @selector(removeObserver:forKeyPath:), @selector(hookRemoveObserver:forKeyPath:));
         swizzleInstanceMethod([NSObject class], @selector(methodSignatureForSelector:), @selector(hookMethodSignatureForSelector:));
         swizzleInstanceMethod([NSObject class], @selector(forwardInvocation:), @selector(hookForwardInvocation:));
+
+        swizzleInstanceMethod([NSObject class], @selector(addObserver:forKeyPath:options:context:), @selector(hookAddObserver:forKeyPath:options:context:));
+        swizzleInstanceMethod([NSObject class], @selector(removeObserver:forKeyPath:), @selector(hookRemoveObserver:forKeyPath:));
     });
 }
 
@@ -1167,6 +1168,8 @@ void swizzleInstanceMethod(Class cls, SEL origSelector, SEL newSelector)
             ks[index] = keys[i];
             objs[index] = objects[i];
             ++index;
+        } else {
+            SFAssert(NO, @"NSDictionary invalid args hookDictionaryWithObject:[%@] forKey:[%@]", objects, keys);
         }
     }
     return [self hookDictionaryWithObjects:objs forKeys:ks count:index];
